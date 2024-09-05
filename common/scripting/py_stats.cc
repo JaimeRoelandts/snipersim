@@ -47,6 +47,8 @@ statsGetterGet(PyObject *self, PyObject *args, PyObject *kw)
    return PyLong_FromUnsignedLongLong(metric->recordMetric());
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 static PyTypeObject statsGetterType = {
    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
    .tp_name = "statsGetter",
@@ -55,6 +57,7 @@ static PyTypeObject statsGetterType = {
    .tp_flags = Py_TPFLAGS_DEFAULT,
    .tp_doc = PyDoc_STR("Stats getter objects"),
 };
+#pragma GCC diagnostic pop
 
 static PyObject *
 getStatsGetter(PyObject *self, PyObject *args)
@@ -213,14 +216,25 @@ static PyMethodDef PyStatsMethods[] = {
    {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
-void HooksPy::PyStats::setup(void)
+static PyModuleDef PyStatsModule = {
+	PyModuleDef_HEAD_INIT,
+	"sim_stats",
+	"",
+	-1,
+	PyStatsMethods,
+	NULL, NULL, NULL, NULL
+};
+
+PyMODINIT_FUNC PyInit_sim_stats(void)
 {
-   PyObject *pModule = Py_InitModule("sim_stats", PyStatsMethods);
+   PyObject *pModule = PyModule_Create(&PyStatsModule);
 
    statsGetterType.tp_new = PyType_GenericNew;
    if (PyType_Ready(&statsGetterType) < 0)
-      return;
+      return NULL;
 
    Py_INCREF(&statsGetterType);
    PyModule_AddObject(pModule, "Getter", (PyObject *)&statsGetterType);
+   return pModule;
 }
+
