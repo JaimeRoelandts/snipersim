@@ -20,28 +20,8 @@ PYTHON2=python2
 
 all: message dependencies $(SIM_TARGETS) configscripts
 
-include common/Makefile.common
-
-dependencies: package_deps sde_kit $(PIN_ROOT) pin xed python mcpat linux builddir showdebugstatus
-
-BUILD_CAPSTONE ?=
-ifeq ($(BUILD_ARM),1)
-BUILD_CAPSTONE=1
-else ifeq ($(BUILD_DYNAMORIO),1)
-BUILD_CAPSTONE=1
-endif
-
-ifeq ($(BUILD_CAPSTONE),1)
-dependencies: capstone
-.PHONY: capstone
-endif
-
-ifeq ($(BUILD_DYNAMORIO),1)
-dependencies: dynamorio
-.PHONY: dynamorio
-endif
-
-$(SIM_TARGETS): dependencies
+#NOTE PINPLAY: This is not updated to the latest version: 1) SDE already contains pinplay, 2) the pinplay-driver (inside the pinplay_toolkit github) cannot easily be build for PIN. 3) The latest pinplay version has a bug preventing to read pinballs.
+#KNOWN ISSUE WITH SDE: It cannot run properly inside virtualbox
 
 # Check for errors. Only one value should be set
 TARGET_COUNT:=0
@@ -71,13 +51,38 @@ $(error If using, set USE_SDE to "1", not "$(USE_SDE)")
 endif
 # Set the default if no values are set
 ifeq ($(TARGET_COUNT),0)
-USE_PINPLAY=1
+USE_PIN=1
+# USE_SDE=1
+# export USE_SDE #Makefile.config needs that variable
 else ifeq ($(TARGET_COUNT),1)
 # Input is valid. Use user-supplied default
 else
 # Error, cannot be >= 2
 $(error One or more tools requested for build. Only one supported USE_PIN=$(USE_PIN) USE_PINPLAY=$(USE_PINPLAY) USE_SDE=$(USE_SDE))
 endif
+
+include common/Makefile.common
+
+dependencies: package_deps sde_kit $(PIN_ROOT) pin xed python mcpat linux builddir showdebugstatus
+
+BUILD_CAPSTONE ?=
+ifeq ($(BUILD_ARM),1)
+BUILD_CAPSTONE=1
+else ifeq ($(BUILD_DYNAMORIO),1)
+BUILD_CAPSTONE=1
+endif
+
+ifeq ($(BUILD_CAPSTONE),1)
+dependencies: capstone
+.PHONY: capstone
+endif
+
+ifeq ($(BUILD_DYNAMORIO),1)
+dependencies: dynamorio
+.PHONY: dynamorio
+endif
+
+$(SIM_TARGETS): dependencies
 
 message:
 	@echo -n Building for x86 \($(SNIPER_TARGET_ARCH)\)
@@ -131,13 +136,12 @@ $(LIB_SIFT): $(LIB_CARBON)
 $(LIB_DECODER): $(LIB_CARBON)
 	@$(MAKE) $(MAKE_QUIET) -C $(SIM_ROOT)/decoder_lib 
 
-DYNAMORIO_GITID=246ddb28e7848b2d09d2b9909f99a6da9b2ce35e
+# DYNAMORIO_GITID=246ddb28e7848b2d09d2b9909f99a6da9b2ce35e
 DYNAMORIO_INSTALL=$(SIM_ROOT)/dynamorio
 DYNAMORIO_INSTALL_DEP=$(DYNAMORIO_INSTALL)/CMakeLists.txt
 $(DYNAMORIO_INSTALL_DEP):
 	$(_MSG) '[DOWNLO] dynamorio'
-	$(_CMD) git clone --quiet --recursive https://github.com/DynamoRIO/dynamorio.git $(DYNAMORIO_INSTALL)
-	$(_CMD) git -C $(DYNAMORIO_INSTALL) reset --quiet --hard $(DYNAMORIO_GITID)
+	$(_CMD) git submodule update --init --recursive --quiet dynamorio
 	$(_CMD) touch $(DYNAMORIO_INSTALL)/.autodownloaded
 
 DYNAMORIO_BUILD_DEP=$(DYNAMORIO_INSTALL)/build/bin64/drrun
@@ -147,13 +151,12 @@ $(DYNAMORIO_BUILD_DEP): $(DYNAMORIO_INSTALL_DEP)
 	$(_CMD) if [ ! -e "$(SIM_ROOT)/dynamorio/build/Makefile" ]; then cd dynamorio && mkdir build && cd build && cmake -DDEBUG=ON .. ; fi
 	$(_CMD) $(MAKE) $(MAKE_QUIET) -C dynamorio/build
 
-CAPSTONE_GITID=f9c6a90489be7b3637ff1c7298e45efafe7cf1b9
+# CAPSTONE_GITID=f9c6a90489be7b3637ff1c7298e45efafe7cf1b9
 CAPSTONE_INSTALL=$(SIM_ROOT)/capstone
 CAPSTONE_INSTALL_DEP=$(CAPSTONE_INSTALL)/arch/AArch64/ARMMappingInsnOp.inc
 $(CAPSTONE_INSTALL_DEP):
 	$(_MSG) '[DOWNLO] capstone'
-	$(_CMD) git clone --quiet https://github.com/aquynh/capstone.git $(CAPSTONE_INSTALL)
-	$(_CMD) git -C $(CAPSTONE_INSTALL) reset --quiet --hard $(CAPSTONE_GITID)
+	$(_CMD) git submodule update --init --quiet capstone
 	$(_CMD) touch $(CAPSTONE_INSTALL)/.autodownloaded
 
 CAPSTONE_BUILD_DEP=$(CAPSTONE_INSTALL)/libcapstone.so.4
@@ -163,35 +166,32 @@ $(CAPSTONE_BUILD_DEP): $(CAPSTONE_INSTALL_DEP)
 	$(_CMD) cd $(CAPSTONE_INSTALL) ; ./make.sh
 
 
-MBUILD_GITID=1651029643b2adf139a8d283db51b42c3c884513
 MBUILD_INSTALL=$(SIM_ROOT)/mbuild
 MBUILD_INSTALL_DEP=$(MBUILD_INSTALL)/mbuild/arar.py
 mbuild: $(MBUILD_INSTALL_DEP)
 $(MBUILD_INSTALL_DEP):
 	$(_MSG) '[DOWNLO] mbuild'
-	$(_CMD) git clone --quiet https://github.com/intelxed/mbuild.git $(MBUILD_INSTALL)
-	$(_CMD) git -C $(MBUILD_INSTALL) reset --quiet --hard $(MBUILD_GITID)
+	$(_CMD) git submodule update --init --quiet mbuild
+	$(_CMD) 
 
-XED_GITID=2be2d282939f6eb84e03e1fed9ba82f32c8bac2d
 XED_INSTALL_DEP=$(XED_INSTALL)/src/common/xed-init.c
 xed_install: $(XED_INSTALL_DEP)
 $(XED_INSTALL_DEP):
 	$(_MSG) '[DOWNLO] xed'
-	$(_CMD) git clone --quiet https://github.com/intelxed/xed.git $(XED_INSTALL)
-	$(_CMD) git -C $(XED_INSTALL) reset --quiet --hard $(XED_GITID)
+	$(_CMD) git submodule update --init --quiet xed
 
 XED_DEP=$(XED_HOME)/include/xed/xed-iclass-enum.h
 xed: mbuild xed_install $(XED_DEP)
 $(XED_DEP): $(XED_INSTALL_DEP)
 	$(_MSG) '[INSTAL] xed'
-	$(_CMD) cd $(XED_INSTALL) ; $(PYTHON2) ./mfile.py --silent --extra-flags=-fPIC --shared --install-dir $(XED_HOME) install
+	$(_CMD) cd $(XED_INSTALL) ; ./mfile.py --silent --extra-flags=-fPIC --shared --install-dir $(XED_HOME) install
 
 ifneq (,$(USE_PIN))
-PIN_DOWNLOAD=https://snipersim.org/packages/pin-3.22-98547-g7a303a835-gcc-linux.tar.gz
-PIN_DEP=$(PIN_HOME)/intel64/lib-ext/libpin3dwarf.so
+PIN_DOWNLOAD=https://software.intel.com/sites/landingpage/pintool/downloads/pin-external-3.31-98861-g71afcc22f-gcc-linux.tar.gz
+PIN_DEP=$(PIN_HOME)/intel64/lib/libpindwarf.so
 $(PIN_ROOT): $(PIN_DEP)
 $(PIN_DEP):
-	$(_MSG) '[DOWNLO] Pin 3.22-98547'
+	$(_MSG) '[DOWNLO] Pin'
 	$(_CMD) mkdir -p $(PIN_HOME)
 	$(_CMD) wget -O $(shell basename $(PIN_DOWNLOAD)) $(WGET_OPTIONS) --no-verbose --quiet $(PIN_DOWNLOAD)
 	$(_CMD) tar -x -f $(shell basename $(PIN_DOWNLOAD)) --auto-compress --strip-components 1 -C $(PIN_HOME)
@@ -211,18 +211,20 @@ $(PIN_DEP):
 	$(_CMD) touch $(PIN_HOME)/.autodownloaded
 sde_kit: $(PIN_ROOT)
 else
-SDE_DOWNLOAD=https://snipersim.org/packages/sde-external-9.7.0-2022-05-09-lin.tar.xz
-PIN_DEP=$(SDE_HOME)/intel64/pin_lib/libpin3dwarf.so
+# SDE_DOWNLOAD=https://snipersim.org/packages/sde-external-9.7.0-2022-05-09-lin.tar.xz
+SDE_DOWNLOAD=https://downloadmirror.intel.com/823664/sde-external-9.38.0-2024-04-18-lin.tar.xz
+PIN_DEP=$(SDE_HOME)/intel64/pin_lib/libpindwarf.so
 sde_kit: $(PIN_DEP)
 $(PIN_DEP):
-	$(_MSG) '[DOWNLO] SDE 9.7.0-2022-05-09'
+	$(_MSG) '[DOWNLO] SDE'
 	$(_CMD) mkdir -p $(SDE_HOME)
 	$(_CMD) wget -O $(shell basename $(SDE_DOWNLOAD)) $(WGET_OPTIONS) --no-verbose --quiet $(SDE_DOWNLOAD)
 	$(_CMD) tar -x -f $(shell basename $(SDE_DOWNLOAD)) --auto-compress --strip-components 1 -C $(SDE_HOME)
 	$(_CMD) rm $(shell basename $(SDE_DOWNLOAD))
+	$(_CMD) rm -r $(SDE_HOME)/pinkit/source/tools/InstLib #It looks like it is missing source files, so it fails to compile but not necessary for sniper
 	$(_CMD) touch $(SDE_HOME)/.autodownloaded
 	$(_MSG) '[DOWNLO] pinplay-tools'
-	$(_CMD) git clone --quiet https://github.com/intel/pinplay-tools $(SDE_HOME)/pinplay-tools
+	$(_CMD) git submodule update --init --quiet $(SDE_HOME)/pinplay-tools
 $(PIN_ROOT): sde_kit
 endif
 
@@ -232,21 +234,22 @@ pin: $(PIN_DEP)
 	@if [ "$$(tools/pinversion.py $(PIN_HOME) | cut -d. -f3)" -lt "$(PIN_REV_MINIMUM)" ]; then echo; echo "Found Pin version $$(tools/pinversion.py $(PIN_HOME)) in $(PIN_HOME)"; echo "but at least revision $(PIN_REV_MINIMUM) is required."; echo; false; fi
 endif
 
-ifneq ($(NO_PYTHON_DOWNLOAD),1)
-PYTHON_DEP=python_kit/$(SNIPER_TARGET_ARCH)/lib/python2.7/lib-dynload/_sqlite3.so
+PYTHON_DEP=python_kit/$(SNIPER_TARGET_ARCH)/pyvenv.cfg
 python: $(PYTHON_DEP)
 $(PYTHON_DEP):
-	$(_MSG) '[DOWNLO] Python $(SNIPER_TARGET_ARCH)'
-	$(_CMD) mkdir -p python_kit/$(SNIPER_TARGET_ARCH)
-	$(_CMD) wget -O - $(WGET_OPTIONS) --no-verbose --quiet "https://snipersim.org/packages/sniper-python27-$(SNIPER_TARGET_ARCH).tgz" | tar xz --strip-components 1 -C python_kit/$(SNIPER_TARGET_ARCH)
-endif
+	$(_MSG) '[INSTAL] Python virtualenv python_kit/$(SNIPER_TARGET_ARCH)'
+	$(_CMD) python3 -m venv python_kit/$(SNIPER_TARGET_ARCH)
 
 ifneq ($(NO_MCPAT_DOWNLOAD),1)
-mcpat: mcpat/mcpat-1.0
-mcpat/mcpat-1.0:
+mcpat/main.cc:
 	$(_MSG) '[DOWNLO] McPAT'
-	$(_CMD) mkdir -p mcpat
-	$(_CMD) wget -O - $(WGET_OPTIONS) --no-verbose --quiet "http://snipersim.org/packages/mcpat-1.0.tgz" | tar xz -C mcpat
+	$(_CMD) git submodule update --init --quiet mcpat
+
+mcpat: mcpat/mcpat-1.0
+mcpat/mcpat-1.0: mcpat/main.cc
+	$(_MSG) '[INSTAL] mcpat'
+	$(_CMD) SUFFIX=-1.0 make -C mcpat
+	$(_CMD) SUFFIX=-1.0.cache CACHE=1 make -C mcpat
 endif
 
 linux: include/linux/perf_event.h
@@ -294,6 +297,9 @@ clean: empty_config empty_deps
 	$(_CMD) if [ -d "$(PIN_HOME)" ]; then $(MAKE) $(MAKE_QUIET) -C frontend/pin-frontend clean ; fi
 	$(_MSG) '[CLEAN ] frontend/dr-frontend'
 	$(_CMD) if [ -d "$(SIM_ROOT)/frontend/dr-frontend/build" ]; then rm -rf $(SIM_ROOT)/frontend/dr-frontend/build ; fi
+	$(_MSG) '[CLEAN ] McPat'
+	$(_CMD) if [ -e mcpat/makefile ]; then $(MAKE) $(MAKE_QUIET) SUFFIX=-1.0 -C mcpat clean; fi
+	$(_CMD) if [ -e mcpat/makefile ]; then $(MAKE) $(MAKE_QUIET) SUFFIX=-1.0.cache -C mcpat clean; fi
 	$(_CMD) rm -f .build_os
 
 distclean: clean
@@ -301,17 +307,18 @@ distclean: clean
 	$(_CMD) if [ -e "$(PIN_HOME)/.autodownloaded" ]; then rm -rf $(PIN_HOME); fi
 	$(_CMD) if [ -e "pin_kit/.autodownloaded" ]; then rm -rf pin_kit; fi
 	$(_MSG) '[DISTCL] SDE kit'
-	$(_CMD) if [ -e "$(SDE_HOME)/.autodownloaded" ]; then rm -rf $(SDE_HOME); fi
+	$(_CMD) if [ -e "$(SDE_HOME)/.autodownloaded" -a -e "$(SDE_HOME)/sde" ]; then git submodule deinit --quiet -f $(SDE_HOME)/pinplay-tools; find $(SDE_HOME)/ -mindepth 1 -not -name 'pinplay-tools' -exec rm -rf {} \; 2> /dev/null || true ; fi
 	$(_MSG) '[DISTCL] Capstone'
-	$(_CMD) if [ -e "$(CAPSTONE_INSTALL)/.autodownloaded" ]; then rm -rf $(CAPSTONE_INSTALL); fi
+	$(_CMD) if [ -e "$(CAPSTONE_INSTALL)/.autodownloaded" ]; then git submodule deinit --quiet -f capstone; fi
 	$(_MSG) '[DISTCL] DynamoRIO'
-	$(_CMD) if [ -e "$(DYNAMORIO_INSTALL)/.autodownloaded" ]; then rm -rf $(DYNAMORIO_INSTALL); fi
+	$(_CMD) if [ -e "$(DYNAMORIO_INSTALL)/.autodownloaded" ]; then git submodule deinit --quiet -f dynamorio; fi
 	$(_MSG) '[DISTCL] python_kit'
 	$(_CMD) rm -rf python_kit
 	$(_MSG) '[DISTCL] McPAT'
-	$(_CMD) rm -rf mcpat
+	$(_CMD) git submodule deinit --quiet -f mcpat
 	$(_MSG) '[DISTCL] Xed'
-	$(_CMD) rm -rf xed xed_kit mbuild
+	$(_CMD) git submodule deinit --quiet -f xed mbuild
+	$(_CMD) rm -rf xed_kit
 	$(_MSG) '[DISTCL] perf_event.h'
 	$(_CMD) rm -f include/linux/perf_event.h
 
