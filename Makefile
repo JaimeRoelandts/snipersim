@@ -172,7 +172,6 @@ mbuild: $(MBUILD_INSTALL_DEP)
 $(MBUILD_INSTALL_DEP):
 	$(_MSG) '[DOWNLO] mbuild'
 	$(_CMD) git submodule update --init --quiet mbuild
-	$(_CMD) 
 
 XED_INSTALL_DEP=$(XED_INSTALL)/src/common/xed-init.c
 xed_install: $(XED_INSTALL_DEP)
