@@ -33,18 +33,18 @@ def add_link_libs(env):
     if env.on_linux():
         env['LIBS'] += ' -lpinplay -lpin -lzlib -lbz2 -lsift'
         # Add internal libs if exists
-        if os.path.exists(os.path.join(pinplay_link_dir,'libxml2'+env['LIBEXT'])):       
+        if os.path.exists(os.path.join(pinplay_link_dir,'libxml2'+env['LIBEXT'])):
             env['LIBS'] += ' -larchxml -lxml2 '
 
     elif env.on_windows():
         env['LIBS'] += ' libpinplay%(LIBEXT)s'
         env['LIBS'] += ' bz2%(LIBEXT)s'
         env['LIBS'] += ' zlib%(LIBEXT)s'
-        if os.path.exists(os.path.join(pinplay_link_dir,'xml2'+env['LIBEXT'])):     
-            # Add internal libs if exists               
+        if os.path.exists(os.path.join(pinplay_link_dir,'xml2'+env['LIBEXT'])):
+            # Add internal libs if exists
             env['LIBS'] += ' xml2%(LIBEXT)s'
             env['LIBS'] += ' libarchxml%(LIBEXT)s'
-        
+
     else:
         mbuild.die('no supported OS')
 
@@ -54,7 +54,7 @@ build_kit.early_init(env,build_kit=True)
 
 if env.on_windows():
    # Add clang tools definitions
-   env['clang-cl']=True   
+   env['clang-cl']=True
    clang_which = shutil.which('clang-cl.exe')
    if clang_which != None and clang_which != '':
        clang_path = clang_which[:clang_which.find('clang-cl.exe')]
@@ -63,9 +63,9 @@ if env.on_windows():
        mbuild.msgb("COMPILER_PATH",compiler_path)
        mbuild.msgb("LINKER_PATH",linker_path)
    env.parse_args({'shared':True,'cc':compiler_path,'cxx':compiler_path,'linker':linker_path})
-else:    
+else:
    env.parse_args({'shared':True})
-   
+
 build_kit.late_init(env)
 
 if 'clean' in env['targets']:
@@ -80,7 +80,7 @@ if env['host_cpu'] == 'x86-64':
 else:
     env['arch'] = 'ia32'
 
-# Set include and link dirs 
+# Set include and link dirs
 pinplay_include_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit','pinplay','include')
 instlib_include_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit','source',
                                                                 'tools','InstLib')
@@ -137,7 +137,9 @@ for tool in tools:
             continue
         if s.endswith('.cpp'):
             cmd = dag.add(env, env.cxx_compile( s ))
-        elif s.endswith('.c') or s.endswith('.cc'):
+        elif s.endswith('.cc'):
+            cmd = dag.add(env, env.cxx_compile( s ))
+        elif s.endswith('.c'):
             cmd = dag.add(env, env.cc_compile( s ))
         elif s.endswith('.s'):
             cmd = dag.add(env, env.cc_assemble( s ))
@@ -156,7 +158,7 @@ for tool in tools:
         all_objs.extend(objs)
     objs = all_objs
 
-    toolname = tool + "%(pintool_suffix)s" 
+    toolname = tool + "%(pintool_suffix)s"
 
     cmd2 = dag.add(env, env.dynamic_lib(objs, toolname, relocate=True))
 

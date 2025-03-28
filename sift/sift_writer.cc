@@ -1116,8 +1116,11 @@ void Sift::Writer::send_va2pa(uint64_t va)
    }
 }
 
-void Sift::Writer::frontEndStop(){
-// front end has been shut-down, shut-down ourselves as well...
-	printf("[FRONT-END] Front-end being forcefully stopped\n");
-	exit(0);
+void Sift::Writer::frontEndStop()
+{
+  // Front end has been shut-down, shut-down ourselves as well...
+  #if VERBOSE > 2
+  printf("[FRONT-END] Front-end being forcefully stopped.\n");
+  #endif
+  exit(0);
 }

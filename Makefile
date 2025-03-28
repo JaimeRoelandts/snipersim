@@ -10,11 +10,12 @@ LIB_PIN_SIM=$(SIM_ROOT)/pin/../lib/pin_sim.so
 LIB_FOLLOW=$(SIM_ROOT)/pin/../lib/follow_execv.so
 LIB_SIFT=$(SIM_ROOT)/sift/libsift.a
 LIB_DECODER=$(SIM_ROOT)/decoder_lib/libdecoder.a
-SIM_TARGETS=$(LIB_DECODER) $(LIB_CARBON) $(LIB_SIFT) $(LIB_PIN_SIM) $(LIB_FOLLOW) $(STANDALONE) $(PIN_FRONTEND) $(DYNAMORIO_FRONTEND)
+LIB_TORCH=$(SIM_ROOT)/libtorch/lib/libtorch.so
+SIM_TARGETS=$(LIB_DECODER) $(LIB_CARBON) $(LIB_SIFT) $(LIB_PIN_SIM) $(LIB_FOLLOW) $(STANDALONE) $(PIN_FRONTEND) $(DYNAMORIO_FRONTEND) $(LIB_TORCH)
 
 PYTHON2=python2
 
-.PHONY: all message dependencies compile_simulator configscripts package_deps pin python linux builddir showdebugstatus distclean mbuild xed_install xed
+.PHONY: all message dependencies compile_simulator configscripts package_deps pin python linux builddir showdebugstatus distclean mbuild xed_install xed torch
 # Remake LIB_CARBON on each make invocation, as only its Makefile knows if it needs to be rebuilt
 .PHONY: $(LIB_CARBON)
 
@@ -51,9 +52,9 @@ $(error If using, set USE_SDE to "1", not "$(USE_SDE)")
 endif
 # Set the default if no values are set
 ifeq ($(TARGET_COUNT),0)
-USE_PIN=1
-# USE_SDE=1
-# export USE_SDE #Makefile.config needs that variable
+# USE_PIN=1
+USE_SDE=1
+export USE_SDE #Makefile.config needs that variable
 else ifeq ($(TARGET_COUNT),1)
 # Input is valid. Use user-supplied default
 else
@@ -63,7 +64,7 @@ endif
 
 include common/Makefile.common
 
-dependencies: package_deps sde_kit $(PIN_ROOT) pin xed python mcpat linux builddir showdebugstatus
+dependencies: package_deps sde_kit $(PIN_ROOT) pin xed python mcpat torch linux builddir showdebugstatus
 
 BUILD_CAPSTONE ?=
 ifeq ($(BUILD_ARM),1)
@@ -165,7 +166,6 @@ $(CAPSTONE_BUILD_DEP): $(CAPSTONE_INSTALL_DEP)
 	$(_MSG) '[INSTAL] capstone'
 	$(_CMD) cd $(CAPSTONE_INSTALL) ; ./make.sh
 
-
 MBUILD_INSTALL=$(SIM_ROOT)/mbuild
 MBUILD_INSTALL_DEP=$(MBUILD_INSTALL)/mbuild/arar.py
 mbuild: $(MBUILD_INSTALL_DEP)
@@ -186,15 +186,13 @@ $(XED_DEP): $(XED_INSTALL_DEP)
 	$(_CMD) cd $(XED_INSTALL) ; ./mfile.py --silent --extra-flags=-fPIC --shared --install-dir $(XED_HOME) install
 
 ifneq (,$(USE_PIN))
-PIN_DOWNLOAD=https://software.intel.com/sites/landingpage/pintool/downloads/pin-external-3.31-98861-g71afcc22f-gcc-linux.tar.gz
+PIN_DOWNLOAD=https://snipersim.org/packages/pin-external-3.31-98869-gfa6f126a8-gcc-linux.tar.gz
 PIN_DEP=$(PIN_HOME)/intel64/lib/libpindwarf.so
 $(PIN_ROOT): $(PIN_DEP)
 $(PIN_DEP):
-	$(_MSG) '[DOWNLO] Pin'
+	$(_MSG) '[DOWNLO] Pin 3.31-98869'
 	$(_CMD) mkdir -p $(PIN_HOME)
-	$(_CMD) wget -O $(shell basename $(PIN_DOWNLOAD)) $(WGET_OPTIONS) --no-verbose --quiet $(PIN_DOWNLOAD)
-	$(_CMD) tar -x -f $(shell basename $(PIN_DOWNLOAD)) --auto-compress --strip-components 1 -C $(PIN_HOME)
-	$(_CMD) rm $(shell basename $(PIN_DOWNLOAD))
+	$(_CMD) wget -O - $(WGET_OPTIONS) --no-verbose --quiet --show-progress $(PIN_DOWNLOAD) | tar -xf - -z --auto-compress --strip-components 1 -C $(PIN_HOME)
 	$(_CMD) touch $(PIN_HOME)/.autodownloaded
 sde_kit: $(PIN_ROOT)
 else ifneq (,$(USE_PINPLAY))
@@ -204,22 +202,17 @@ $(PIN_ROOT): $(PIN_DEP)
 $(PIN_DEP):
 	$(_MSG) '[DOWNLO] Pinplay 3.11-97998'
 	$(_CMD) mkdir -p $(PIN_HOME)
-	$(_CMD) wget -O $(shell basename $(PIN_DOWNLOAD)) $(WGET_OPTIONS) --no-verbose --quiet $(PIN_DOWNLOAD)
-	$(_CMD) tar -x -f $(shell basename $(PIN_DOWNLOAD)) --auto-compress --strip-components 1 -C $(PIN_HOME)
-	$(_CMD) rm $(shell basename $(PIN_DOWNLOAD))
+	$(_CMD) wget -O - $(WGET_OPTIONS) --no-verbose --quiet --show-progress $(PIN_DOWNLOAD) | tar -xf - -j --strip-components 1 -C $(PIN_HOME)
 	$(_CMD) touch $(PIN_HOME)/.autodownloaded
 sde_kit: $(PIN_ROOT)
 else
-# SDE_DOWNLOAD=https://snipersim.org/packages/sde-external-9.7.0-2022-05-09-lin.tar.xz
-SDE_DOWNLOAD=https://downloadmirror.intel.com/823664/sde-external-9.38.0-2024-04-18-lin.tar.xz
+SDE_DOWNLOAD=https://snipersim.org/packages/sde-external-9.44.0-2024-08-22-lin.tar.xz
 PIN_DEP=$(SDE_HOME)/intel64/pin_lib/libpindwarf.so
 sde_kit: $(PIN_DEP)
 $(PIN_DEP):
-	$(_MSG) '[DOWNLO] SDE'
+	$(_MSG) '[DOWNLO] SDE 9.44.0-2024-08-22'
 	$(_CMD) mkdir -p $(SDE_HOME)
-	$(_CMD) wget -O $(shell basename $(SDE_DOWNLOAD)) $(WGET_OPTIONS) --no-verbose --quiet $(SDE_DOWNLOAD)
-	$(_CMD) tar -x -f $(shell basename $(SDE_DOWNLOAD)) --auto-compress --strip-components 1 -C $(SDE_HOME)
-	$(_CMD) rm $(shell basename $(SDE_DOWNLOAD))
+	$(_CMD) wget -O - $(WGET_OPTIONS) --no-verbose --quiet --show-progress $(SDE_DOWNLOAD) | tar -xf - -J --strip-components 1 -C $(SDE_HOME)
 	$(_CMD) rm -r $(SDE_HOME)/pinkit/source/tools/InstLib #It looks like it is missing source files, so it fails to compile but not necessary for sniper
 	$(_CMD) touch $(SDE_HOME)/.autodownloaded
 	$(_MSG) '[DOWNLO] pinplay-tools'
@@ -250,11 +243,23 @@ mcpat/mcpat-1.0: mcpat/main.cc
 	$(_CMD) SUFFIX=-1.0 make -C mcpat
 	$(_CMD) SUFFIX=-1.0.cache CACHE=1 make -C mcpat
 endif
-
 linux: include/linux/perf_event.h
 include/linux/perf_event.h:
 	$(_MSG) '[INSTAL] perf_event.h'
 	$(_CMD) if [ -e /usr/include/linux/perf_event.h ]; then cp /usr/include/linux/perf_event.h include/linux/perf_event.h; else cp include/linux/perf_event_2.6.32.h include/linux/perf_event.h; fi
+
+ifneq ($(NO_TORCH),1)
+TORCH_VERSION=2.5.0
+TORCH_DOWNLOAD=https://snipersim.org/packages/libtorch-shared-with-deps-${TORCH_VERSION}-cpu.tar.gz
+TORCH_DEP := $(SIM_ROOT)/libtorch/lib/libtorch.so
+ifeq ($(wildcard $(TORCH_DEP)),)
+torch-download:
+	$(_MSG) '[DOWNLO] LIBTORCH $(TORCH_VERSION)';
+	$(_CMD) wget -O - $(WGET_OPTIONS) --no-verbose --quiet --show-progress $(TORCH_DOWNLOAD) | tar -xf - -z -C $(SIM_ROOT);
+
+torch: torch-download
+endif
+endif
 
 builddir: lib
 lib:
@@ -274,6 +279,7 @@ configscripts: dependencies
 	@./tools/makerelativepath.py pin_home "$(SIM_ROOT)" "$(PIN_HOME)" >> config/sniper.py
 	@./tools/makerelativepath.py xed_home "$(SIM_ROOT)" "$(XED_HOME)" >> config/sniper.py
 	@./tools/makerelativepath.py dynamorio_home "$(SIM_ROOT)" "$(DYNAMORIO_INSTALL)/build" >> config/sniper.py
+	@./tools/makerelativepath.py torch_home "$(SIM_ROOT)" "$(TORCH_HOME)" >> config/sniper.py
 	@if [ $$(which git) ]; then if [ -e "$(SIM_ROOT)/.git" ]; then echo "git_revision=\"$$(git --git-dir='$(SIM_ROOT)/.git' rev-parse HEAD)\"" >> config/sniper.py; fi ; fi
 	@./tools/makebuildscripts.py "$(SIM_ROOT)" "$(SDE_HOME)" "$(PIN_HOME)" "$(DYNAMORIO_INSTALL)/build" "$(CC)" "$(CXX)" "$(SNIPER_TARGET_ARCH)"
 
@@ -320,6 +326,8 @@ distclean: clean
 	$(_CMD) rm -rf xed_kit
 	$(_MSG) '[DISTCL] perf_event.h'
 	$(_CMD) rm -f include/linux/perf_event.h
+	$(_MSG) '[DISTCL] libtorch'
+	$(_CMD) rm -rf libtorch
 
 regress_quick: regress_unit regress_apps
 

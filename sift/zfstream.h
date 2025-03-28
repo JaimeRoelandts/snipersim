@@ -105,7 +105,7 @@ class cvifstream : public vistream
 	   virtual ~cvifstream();
 	   virtual void read(char* s, std::streamsize n);
 	   virtual int peek();
-	   virtual bool fail() const; 
+	   virtual bool fail() const;
 };
 
 class izstream : public vistream

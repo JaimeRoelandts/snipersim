@@ -19,9 +19,9 @@ def createJSONData(interval, num_intervals, resultsdir, outputdir, verbose = Fal
   topodir = os.path.join(outputdir,'levels','topology')
   mkdir_p(topodir)
 
-  gen_topology.gen_topology(resultsdir = resultsdir, outputobj = file(os.path.join(topodir, 'topo.svg'), 'w'), format = 'svg', embedded = True)
+  gen_topology.gen_topology(resultsdir = resultsdir, outputobj = open(os.path.join(topodir, 'topo.svg'), 'w'), format = 'svg', embedded = True)
 
-  config = sniper_config.parse_config(file(os.path.join(resultsdir, 'sim.cfg'), "r").read())
+  config = sniper_config.parse_config(open(os.path.join(resultsdir, 'sim.cfg'), "r").read())
   ncores = int(config['general/total_cores'])
   stats = sniper_stats.SniperStats(resultsdir)
 

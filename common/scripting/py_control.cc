@@ -52,6 +52,7 @@ setProgress(PyObject *self, PyObject *args)
    Py_RETURN_NONE;
 }
 
+#include "trace_manager.h"
 static PyObject *
 simulatorAbort(PyObject *self, PyObject *args)
 {
