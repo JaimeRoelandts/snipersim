@@ -237,11 +237,11 @@ mcpat/main.cc:
 	$(_MSG) '[DOWNLO] McPAT'
 	$(_CMD) git submodule update --init --quiet mcpat
 
-mcpat: mcpat/mcpat-1.0
-mcpat/mcpat-1.0: mcpat/main.cc
-	$(_MSG) '[INSTAL] mcpat'
-	$(_CMD) SUFFIX=-1.0 make -C mcpat
-	$(_CMD) SUFFIX=-1.0.cache CACHE=1 make -C mcpat
+LMDB_INSTALLED := $(shell ldconfig -p | grep -q liblmdb && echo "1" || echo "0")
+mcpat: mcpat/mcpat
+mcpat/mcpat: mcpat/main.cc
+	$(_MSG) '[INSTAL] mcpat with CACHE=$(LMDB_INSTALLED)'
+	$(_CMD) CACHE=$(LMDB_INSTALLED) make -C mcpat
 endif
 linux: include/linux/perf_event.h
 include/linux/perf_event.h:
@@ -303,8 +303,7 @@ clean: empty_config empty_deps
 	$(_MSG) '[CLEAN ] frontend/dr-frontend'
 	$(_CMD) if [ -d "$(SIM_ROOT)/frontend/dr-frontend/build" ]; then rm -rf $(SIM_ROOT)/frontend/dr-frontend/build ; fi
 	$(_MSG) '[CLEAN ] McPat'
-	$(_CMD) if [ -e mcpat/makefile ]; then $(MAKE) $(MAKE_QUIET) SUFFIX=-1.0 -C mcpat clean; fi
-	$(_CMD) if [ -e mcpat/makefile ]; then $(MAKE) $(MAKE_QUIET) SUFFIX=-1.0.cache -C mcpat clean; fi
+	$(_CMD) if [ -e mcpat/makefile ]; then $(MAKE) $(MAKE_QUIET) -C mcpat clean; fi
 	$(_CMD) rm -f .build_os
 
 distclean: clean
