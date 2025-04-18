@@ -64,7 +64,7 @@ endif
 
 include common/Makefile.common
 
-dependencies: package_deps sde_kit $(PIN_ROOT) pin xed python mcpat torch linux builddir showdebugstatus
+dependencies: package_deps sde_kit $(PIN_ROOT) pin xed python mcpat cacti torch linux builddir showdebugstatus
 
 BUILD_CAPSTONE ?=
 ifeq ($(BUILD_ARM),1)
@@ -242,6 +242,11 @@ mcpat: mcpat/mcpat
 mcpat/mcpat: mcpat/main.cc
 	$(_MSG) '[INSTAL] mcpat with CACHE=$(LMDB_INSTALLED)'
 	$(_CMD) CACHE=$(LMDB_INSTALLED) make -C mcpat
+
+cacti: mcpat/cacti/cacti
+mcpat/cacti/cacti: mcpat/main.cc #It needs to pull the mcpat repo first
+	$(_MSG) '[INSTAL] cacti with CACHE=$(LMDB_INSTALLED)'
+	$(_CMD) CACHE=$(LMDB_INSTALLED) make -C mcpat/cacti
 endif
 linux: include/linux/perf_event.h
 include/linux/perf_event.h:
@@ -304,6 +309,8 @@ clean: empty_config empty_deps
 	$(_CMD) if [ -d "$(SIM_ROOT)/frontend/dr-frontend/build" ]; then rm -rf $(SIM_ROOT)/frontend/dr-frontend/build ; fi
 	$(_MSG) '[CLEAN ] McPat'
 	$(_CMD) if [ -e mcpat/makefile ]; then $(MAKE) $(MAKE_QUIET) -C mcpat clean; fi
+	$(_MSG) '[CLEAN ] Cacti'
+	$(_CMD) if [ -e mcpat/cacti/makefile ]; then $(MAKE) $(MAKE_QUIET) -C mcpat/cacti clean; fi
 	$(_CMD) rm -f .build_os
 
 distclean: clean
