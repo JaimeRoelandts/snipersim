@@ -88,7 +88,7 @@ pinplay_link_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit','pinplay',e
 example_link_dir = os.path.join(os.environ['SDE_BUILD_KIT'], 'pinkit','sde-example',
                                                              'lib',env['arch'])
 pin_lib_dir = os.path.join(os.environ['SDE_BUILD_KIT'],env['arch'],'pin_lib')
-pin_crt_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit',env['arch'],'runtime','pincrt')
+pin_crt_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit',env['arch'],'pinrt','lib')
 
 ####################################################
 # Start to collect info for the build
@@ -119,7 +119,7 @@ env.add_link_dir(pin_crt_dir)
 env.add_link_dir('./sift/obj-intel64')
 if env.on_linux():
     env['LINKFLAGS'] += ' -Wl,--hash-style=sysv '
-    env['LINKFLAGS'] += ' -Wl,--rpath,\$ORIGIN/../../../../%(arch)s/pin_lib:\$ORIGIN/../../../../%(arch)s/xed_lib:\$ORIGIN/pin_lib:\$ORIGIN/xed_lib'
+    env['LINKFLAGS'] += r' -Wl,--rpath,\$ORIGIN/../../../../%(arch)s/pin_lib:\$ORIGIN/../../../../%(arch)s/xed_lib:\$ORIGIN/pin_lib:\$ORIGIN/xed_lib'
 
 # Tools sources
 tool_sources = {}
@@ -127,6 +127,13 @@ tool_sources['sde_sift_recorder'] =  ['bbv_count.cc', 'emulation.cc','globals.cc
 
 # Programs sources
 programs_sources = {}
+
+# Setup pin-gcc
+pinrt_bin_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit',env['arch'],'pinrt','bin')    
+env['toolchain']      =  pinrt_bin_dir + "/"
+env['CC_COMPILER']    =  'pin-gcc'
+env['CXX_COMPILER']   =  'pin-g++'
+env['LINKER']         =  'pin-g++'   
 
 # Build tools
 for tool in tools:
