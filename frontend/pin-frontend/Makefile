@@ -6,6 +6,8 @@
 
 # If the tool is built out of the kit, PIN_ROOT must be specified in the make invocation and point to the kit root.
 ifdef PIN_ROOT
+SDE_ROOT := $(PIN_ROOT)/sde-example
+PINPLAY_ROOT := $(PIN_ROOT)/pinplay
 CONFIG_ROOT := $(PIN_ROOT)/source/tools/Config
 else
 CONFIG_ROOT := ../Config

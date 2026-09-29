@@ -23,7 +23,6 @@ TEST_TOOL_ROOTS :=
 TEST_ROOTS :=
 
 # This defines a list of tests that should run in the "short" sanity. Tests in this list must also
-# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
 # If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
 # SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
 SANITY_SUBSET :=
@@ -70,33 +69,46 @@ LIB_ROOTS :=
 #
 ##############################################################
 
-# This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
-
-ifneq ($(DEBUG_SHOW_COMPILE),)
-  SHOW_COMPILE=1
-  MAKE_QUIET=
-  _MSG=@echo >/dev/null
-  _CMD=
-else
-  SHOW_COMPILE=
-  MAKE_QUIET=--quiet
-  _MSG=@echo
-  _CMD=@
-endif
 
 ARCH_QUERY = $(shell uname -m)
 ifeq ($(ARCH_QUERY),i686)
 	TARGET_ARCH = -DTARGET_IA32
 else
 	ifeq ($(ARCH_QUERY),x86_64)
-		TARGET_ARCH ?= -DTARGET_INTEL64 -DTARGET_IA32E
+		TARGET_ARCH ?= -DTARGET_INTEL64
 	else
 		$(error Unknown target arch: $(ARCH_QUERY))
 	endif
 endif
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+
+TOOL_CXXFLAGS := -I$(SDE_ROOT)/include -I./sift $(TOOL_CXXFLAGS)
+TOOL_CXXFLAGS += -DSDE_INIT# -DPINPLAY -I$(PINPLAY_ROOT)/include
+TOOL_CXXFLAGS += -DPIN_RT -D_LIBCPP_HAS_MUSL_LIBC -DPIN_DISABLE_CRT_REG_DEF
+TOOL_CXXFLAGS += -Wno-sign-compare
+ifeq ($(OS),Windows_NT)
+TOOL_CXXFLAGS += -D_GNU_SOURCE -D_XOPEN_SOURCE=700 -D_LIBCPP_NO_VCRUNTIME -D_LIBCPP_DISABLE_AVAILABILITY -D_mm_malloc
+TOOL_CXXFLAGS += -nostdinc /std:c++17 -fno-builtin -Wno-unicode
+TOOL_CXXFLAGS += -Wno-unknown-pragmas -Wno-pointer-sign -Wno-incompatible-pointer-types -Wno-microsoft-include
+TOOL_CXXFLAGS += -Wno-ignored-attributes -Wno-unused-function -Wno-non-c-typedef-for-linkage
+TOOL_CXXFLAGS += -Wno-invalid-noreturn -Wno-missing-braces -Wno-unused-command-line-argument
+TOOL_CXXFLAGS += -Wno-nonportable-include-path -Wno-sizeof-pointer-memaccess -Wno-unused-value
+TOOL_CXXFLAGS += -Wno-overloaded-virtual -Wno-unused-private-field -Wno-deprecated-declarations
+TOOL_CXXFLAGS += -Wno-microsoft-enum-forward-reference -Wno-unused-but-set-variable -Wno-bitwise-instead-of-logical
+TOOL_CXXFLAGS += -Wno-int-to-void-pointer-cast -Wno-inconsistent-missing-override
+TOOL_CXXFLAGS += -mcx16
+endif
+
+ifeq ($(OS),Windows_NT)
+TOOL_LPATHS += /LIBPATH:$(SDE_ROOT)/lib/$(TARGET) /LIBPATH:$(PINPLAY_ROOT)/$(TARGET)
+TOOL_LPATHS += libpinplay.lib libsde.lib bz2.lib zlib.lib
+else
+# sde and pinplay libraries appears twice to avoid circular dependency
+TOOL_LPATHS += -L$(SDE_ROOT)/lib/$(TARGET) -L$(PINPLAY_ROOT)/$(TARGET)
+TOOL_LPATHS += -lpinplay -lsde -lpinplay -lsde -lbz2 -lzlib
+endif
 
 
 PINPLAY_HOME = $(PIN_ROOT)/extras/pinplay
@@ -114,7 +126,21 @@ PINPLAY_LIBS =
 PINPLAY_LD_FLAGS =
 endif
 
-COMPILE_PIN_FLAGS := -g -std=c++1z $(PINPLAY_CXXFLAGS) $(TOOL_CXXFLAGS) -I $(PIN_ROOT)/$(TARGET)/pinrt/include
+ifneq ($(DEBUG_SHOW_COMPILE),)
+  SHOW_COMPILE=1
+  MAKE_QUIET=
+  _MSG=@echo >/dev/null
+  _CMD=
+else
+  SHOW_COMPILE=
+  MAKE_QUIET=--quiet
+  _MSG=@echo
+  _CMD=@
+endif
+
+
+
+COMPILE_PIN_FLAGS := -g -std=c++1z $(PINPLAY_CXXFLAGS) $(TOOL_CXXFLAGS)
 LINK_FLAGS := -g $(TOOL_LDFLAGS)
 	
 LINK_LIBS = sift/libsift.a $(PINPLAY_LIBS)
@@ -129,7 +155,7 @@ all: sift/libsift.a $(OBJDIR)pin_frontend
 
 $(OBJDIR)%$(OBJ_SUFFIX) : %.cc $(wildcard *.h) $(wildcard ../*.h) $(wildcard ../*.tcc)
 	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(ROOT_DIR)/../../)/,,$(shell readlink -f $@))
-	$(_CMD) $(CXX) -I$(ROOT_DIR)/sift -I$(ROOT_DIR)/.. $(TARGET_ARCH) $(COMPILE_PIN_FLAGS) -c -o $@ $<
+	$(_CMD) $(TOOL_CXX) $(COMPILE_PIN_FLAGS) -I$(ROOT_DIR)/sift -I$(ROOT_DIR)/.. $(TARGET_ARCH) -c -o $@ $< $(CXXFLAGS)
 
 sift/sift_reader.h: sift
 	@for i in $(wildcard $(ROOT_DIR)/../../sift/*.h) $(wildcard $(ROOT_DIR)/../../sift/*.cc) ; do ln -fs $$i sift/. ; done
@@ -138,14 +164,16 @@ sift/sift_reader.h: sift
 # Build libsift against PinCRT
 sift/libsift.a: sift/sift_reader.h $(wildcard sift/*.h) $(wildcard sift/*.cc)
 	$(MAKE) -C sift
-
-ifeq (,$(wildcard $(shell dirname $(shell dirname $(CONTROLLERLIB)))))
-$(OBJDIR)pin_frontend: $(OBJECTS) $(LINK_LIBS)
-else
-$(OBJDIR)pin_frontend: $(OBJECTS) $(LINK_LIBS) $(CONTROLLERLIB)
+ifneq ($(strip $(CONTROLLERLIB)),)
+  # Only add the controller lib if its directory tree actually exists
+  ifneq (,$(wildcard $(shell dirname $(shell dirname $(CONTROLLERLIB)))))
+    FRONTEND_DEPS := $(CONTROLLERLIB)
+  endif
 endif
+
+$(OBJDIR)pin_frontend: $(OBJECTS) $(LINK_LIBS) $(FRONTEND_DEPS)
 	$(_MSG) '[LD    ]' $(subst $(shell readlink -f $(ROOT_DIR)/../../)/,,$(shell readlink -f $@))
-	$(_CMD) $(LINKER) $(LINK_FLAGS) $(LINK_EXE) $@ $(^:%.h=) $(TOOL_LPATHS) $(TOOL_LIBS)
+	$(_CMD) $(TOOL_LINKER) $(LINK_FLAGS) $(LINK_EXE) $@ $(^:%.h=) $(TOOL_LPATHS) $(TOOL_LIBS)
 
 clean: cleanall
 

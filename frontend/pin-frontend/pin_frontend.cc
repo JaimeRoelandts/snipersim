@@ -7,8 +7,8 @@ extern "C" {
 #define catch(...) if (0)
 
 #include "shared_ptr.h"
-#include "frontend.h"
 #include "globals.h"
+#include "frontend.h"
 #include "frontend_threads.h"
 //#include "pin.H"
 
@@ -269,8 +269,16 @@ void FrontendSyscallModel<PinFrontend>::syscallExitCallback
 
 void FrontendSyscallModel<PinFrontend>::initSyscallModeling()
 {
-   PIN_AddSyscallEntryFunction(syscallEntryCallback, 0);
-   PIN_AddSyscallExitFunction(syscallExitCallback, 0);
+   // Pin (this kit) passes the thread id as int; the frontend uses threadid_t.
+   PIN_AddSyscallEntryFunction(
+      [](int tid, CONTEXT *ctxt, SYSCALL_STANDARD std, void *v) {
+         syscallEntryCallback(static_cast<threadid_t>(tid), ctxt, std, v);
+      }, 0);
+
+   PIN_AddSyscallExitFunction(
+      [](int tid, CONTEXT *ctxt, SYSCALL_STANDARD std, void *v) {
+         syscallExitCallback(static_cast<threadid_t>(tid), ctxt, std, v);
+      }, 0);
 }
 
 
