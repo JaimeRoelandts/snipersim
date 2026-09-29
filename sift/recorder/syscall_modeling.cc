@@ -103,7 +103,7 @@ VOID emulateSyscallFunc(THREADID threadid, CONTEXT *ctxt)
          // Handle SYS_clone child tid capture for proper pthread_join emulation.
          // When the CLONE_CHILD_CLEARTID option is enabled, remember its child_tidptr and
          // then when the thread ends, write 0 to the tid mutex and futex_wake it
-         case SYS_clone3_sniper:
+			case SYS_clone3:
          {
             if (args[0] && CLONE_THREAD)
             {

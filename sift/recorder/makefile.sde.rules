@@ -95,7 +95,7 @@ all: sift/$(OBJDIR)libsift.a $(OBJDIR)sde_sift_recorder$(PINTOOL_SUFFIX)
 
 $(OBJDIR)%$(OBJ_SUFFIX) : %.cc $(wildcard *.h)
 	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(ROOT_DIR)/../..)/,,$(shell readlink -f $@))
-	$(_CMD) $(CXX) $(TOOL_CXXFLAGS) -I$(ROOT_DIR)/sift -I$(ROOT_DIR)/.. $(TARGET_ARCH) -c -o $@ $< $(CXXFLAGS)
+	$(_CMD) $(TOOL_CXX) $(TOOL_CXXFLAGS) -I$(ROOT_DIR)/sift -I$(ROOT_DIR)/.. $(TARGET_ARCH) -c -o $@ $< $(CXXFLAGS)
 
 sift/sift_reader.h: sift
 	@for i in $(wildcard $(ROOT_DIR)/../../sift/*.h) $(wildcard $(ROOT_DIR)/../../sift/*.cc) ; do ln -fs $$i sift/. ; done
@@ -106,11 +106,11 @@ sift/$(OBJDIR)libsift.a: sift/sift_reader.h $(wildcard sift/*.h) $(wildcard sift
 	@$(MAKE) -C sift
 
 $(OBJDIR)sde_sift_recorder$(PINTOOL_SUFFIX): \
-	$(RECORDER_OBJECTS) \
+	$(OBJECTS) \
 	sift/$(OBJDIR)libsift.a
 
 	$(TOOL_LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ \
-		$(RECORDER_OBJECTS) \
+		$(OBJECTS) \
 		sift/$(OBJDIR)libsift.a \
 		$(TOOL_LPATHS) \
 		$(TOOL_LIBS)
