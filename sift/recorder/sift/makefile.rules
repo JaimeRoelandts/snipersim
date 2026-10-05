@@ -45,7 +45,7 @@ LIB_ROOTS := libsift
 ##############################################################
 
 # See makefile.default.rules for the default build rules.
-TOOL_CXXFLAGS := -I$(SDE_ROOT)/include $(TOOL_CXXFLAGS)
+TOOL_CXXFLAGS := -I$(SDE_ROOT)/include -I. $(TOOL_CXXFLAGS)
 TOOL_CXXFLAGS += -DSDE_INIT -DPINPLAY -I$(PINPLAY_ROOT)/include
 
 ifeq ($(OS),Windows_NT)
@@ -62,8 +62,8 @@ endif
 OBJECTS=$(patsubst %.cc,%.o,$(SOURCES))
 $(OBJDIR)%.o : %.cc $(wildcard *.h) 
 	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(ROOT_DIR)/../../..)/,,$(shell readlink -f $@))
-	$(_CMD) $(CXX) $(TOOL_CXXFLAGS) -c -o $@ $< $(CXXFLAGS)
+	$(_CMD) $(TOOL_CXX) $(TOOL_CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)libsift$(LIB_SUFFIX): $(OBJDIR)sift_reader$(OBJ_SUFFIX) $(OBJDIR)sift_utils$(OBJ_SUFFIX) $(OBJDIR)sift_writer$(OBJ_SUFFIX) $(OBJDIR)zfstream$(OBJ_SUFFIX)
 	$(_MSG) '[LD    ]' $(subst $(shell readlink -f $(ROOT_DIR)/../../..)/,,$(shell readlink -f $@))
-	$(ARCHIVER)$@ $^
+	$(TOOL_ARCHIVER)$@ $^
