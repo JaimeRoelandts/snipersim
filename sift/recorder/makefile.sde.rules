@@ -110,8 +110,7 @@ $(OBJDIR)sde_sift_recorder$(PINTOOL_SUFFIX): \
 	sift/$(OBJDIR)libsift.a
 
 	$(TOOL_LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ \
-		$(OBJECTS) \
-		sift/$(OBJDIR)libsift.a \
+		$^ \
 		$(TOOL_LPATHS) \
 		$(TOOL_LIBS)
 
