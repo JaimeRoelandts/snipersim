@@ -1060,8 +1060,8 @@ uint64_t Sift::Writer::va2pa_lookup(uint64_t vp)
          exit(1);
       }
    }
-   off64_t index = vp * sizeof(intptr_t);
-   off64_t offset = lseek64(fd_va, index, SEEK_SET);
+   off_t index = vp * sizeof(intptr_t);
+   off_t offset = lseek(fd_va, index, SEEK_SET);
    sift_assert(offset == index);
    intptr_t pp;
    ssize_t size = read(fd_va, &pp, sizeof(intptr_t));

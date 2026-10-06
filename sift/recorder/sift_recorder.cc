@@ -292,7 +292,9 @@ int main(int argc, char **argv)
    PIN_AddFiniFunction(Fini, 0);
    PIN_AddDetachFunction(Detach, 0);
 
+   #ifndef PINPLAY //PINPLAY already defines this callback, and it can only be called once
    PIN_AddFollowChildProcessFunction(followChild, 0);
+   #endif
    if (KnobEmulateSyscalls.Value())
    {
       PIN_AddForkFunction(FPOINT_BEFORE, forkBefore, 0);
