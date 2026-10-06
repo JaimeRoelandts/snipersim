@@ -45,8 +45,10 @@ LIB_ROOTS := libsift
 ##############################################################
 
 # See makefile.default.rules for the default build rules.
-TOOL_CXXFLAGS := -I$(SDE_ROOT)/include -I. $(TOOL_CXXFLAGS)
+TOOL_CXXFLAGS := -I$(SDE_ROOT)/include $(TOOL_CXXFLAGS)
 TOOL_CXXFLAGS += -DSDE_INIT -DPINPLAY -I$(PINPLAY_ROOT)/include
+# Add rules to find zlib.h and zconf.h in system header files. SDE ships libzlib.a with pinplay, but does not provide any header files.
+TOOL_CXXFLAGS += -idirafter /usr/include -idirafter /usr/include/x86_64-linux-gnu
 
 ifeq ($(OS),Windows_NT)
 TOOL_LPATHS += /LIBPATH:$(SDE_ROOT)/lib/$(TARGET) /LIBPATH:$(PINPLAY_ROOT)/$(TARGET)
